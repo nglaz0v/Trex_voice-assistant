@@ -1,51 +1,74 @@
-import pyttsx3      # Синтез речи
-import datetime     # Работа со временем
-import speech_recognition as sr     # Распознавание речи online
-from vosk import Model, KaldiRecognizer     # Распознавание речи offline
-import wave     # Создание и чтение аудиофайлов формата .wav
-import os       # Работа с файловой системой
-import json     # Работа с данными в формате JSON
-import wikipediaapi     # Доступ к API Википедии
-import webbrowser       # Открытие вкладок браузера
-import traceback        # Формирование информации об исключениях
-from googletrans import Translator      # Доступ к API Google Translate
-from pyowm import OWM       # Доступ к API OpenWeatherMap
-from pyowm.utils.config import get_default_config       # Параметры по умолчанию для OWM
-import subprocess       # Запуск новых процессов
-import random       # Генератор случайных чисел
-from pathlib import Path        # Работа с путями файловой системы
-import smtplib      # Работа с почтой
-from email.mime.multipart import MIMEMultipart      # Создание многочастных сообщений электронной почты
-from email.mime.text import MIMEText        # Создание текстовых частей в сообщениях электронной почты
-import requests     # Отправка HTTP-запросов и получение ответов от Web-серверов
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Голосовой помощник Trex."""
 
-# Класс ассистента
+import datetime  # Работа со временем
+import wave  # Создание и чтение аудиофайлов формата .wav
+import os  # Работа с файловой системой
+import json  # Работа с данными в формате JSON
+import webbrowser  # Открытие вкладок браузера
+import traceback  # Формирование информации об исключениях
+import subprocess  # Запуск новых процессов
+import random  # Генератор случайных чисел
+from pathlib import Path  # Работа с путями файловой системы
+import smtplib  # Работа с почтой
+
+import pyttsx3  # Синтез речи
+import speech_recognition as sr  # Распознавание речи online
+from vosk import Model, KaldiRecognizer  # Распознавание речи offline
+import wikipediaapi  # Доступ к API Википедии
+from googletrans import Translator  # Доступ к API Google Translate
+from pyowm import OWM  # Доступ к API OpenWeatherMap
+from pyowm.utils.config import get_default_config  # Параметры по умолчанию для OWM
+from email.mime.multipart import MIMEMultipart  # Создание многочастных сообщений электронной почты
+from email.mime.text import MIMEText  # Создание текстовых частей в сообщениях электронной почты
+import requests  # Отправка HTTP-запросов и получение ответов от Web-серверов
+
+
 class bot:
+    """Класс ассистента."""
+
     bot_name_ru = ""
     bot_name_en = ""
     city = ""
     language = ""
 
-# Класс для мультиязычности
+
 class bot_translate:
+    """Класс для мультиязычности."""
+
     with open("translations.json", "r", encoding="UTF-8") as file:  # Подключение к файлу с переводами
         translations = json.load(file)
 
-    def get(self, text: str):
+    def get(self, text: str) -> str:
         if text in self.translations:
             return self.translations[text][trex.language]
         else:
-            print(f"Для фразы: {text} нет перевода.")   # Если перевод не найден - ошибка
+            print(f"Для фразы: {text} нет перевода.")  # Если перевод не найден - ошибка
             return text
 
-# Воспроизведение речи ассистента
-def speak(my_bot, text):
+
+def speak(my_bot: bot, text: str) -> None:
+    """Воспроизведение речи ассистента."""
     print(f"{my_bot.bot_name_ru} говорит: {text}.")
     engine.say(text)
     engine.runAndWait()
 
-# Приветственное сообщение при запуске программы
-def greetings():
+
+def voice_listening() -> None:
+    """Прослушивание голосов, доступных в ОС."""
+    i = 0
+    for voice in voices:
+        engine.setProperty('voice', voices[i].id)
+        print('Имя: %s' % voice.name)
+        print('ID: ', i)
+        speak(trex, "1")
+        print("--------------------")
+        i = i + 1
+
+
+def greetings() -> None:
+    """Приветственное сообщение при запуске программы."""
     hour = int(datetime.datetime.now().hour)
     if hour >= 0 and hour < 6:
         speak(trex, f"Доброй ночи! Я - {trex.bot_name_ru}, твой голосовой помощник. Чем могу помочь?")
@@ -56,26 +79,28 @@ def greetings():
     else:
         speak(trex, f"Добрый вечер! Я - {trex.bot_name_ru}, твой голосовой помощник. Чем могу помочь?")
 
-# Запись речи
-def record():
+
+def record() -> str:
+    """Запись речи."""
     query = ""
     with microphone:
         recognizer.adjust_for_ambient_noise(microphone, duration=1)  # Регулирование уровня окружающего шума
         try:
             print(f"{trex.bot_name_ru} слушает...")
-            rec_audio = recognizer.listen(microphone, 5, 5)     # Запись голоса с микрофона
-            with open("recorded_speech.wav", "wb") as file:     # Сохранение аудио в файл
+            rec_audio = recognizer.listen(microphone, 5, 5)  # Запись голоса с микрофона
+            with open("recorded_speech.wav", "wb") as file:  # Сохранение аудио в файл
                 file.write(rec_audio.get_wav_data())
-            query = online_recognition()    # Запуск online-распознавания
+            query = online_recognition()  # Запуск online-распознавания
         except sr.WaitTimeoutError:
             speak(trex, translator.get("Извините, я вас не понял. Повторите, пожалуйста, запрос"))
     return query
 
-# Online-распознавание речи
-def online_recognition():
+
+def online_recognition() -> str:
+    """Online-распознавание речи."""
     query = ""
     try:
-        rec_audio = sr.WavFile("recorded_speech.wav")   # Чтение аудиофайла с речью
+        rec_audio = sr.WavFile("recorded_speech.wav")  # Чтение аудиофайла с речью
         with rec_audio as audio:
             content = recognizer.record(audio)
         print(f"{trex.bot_name_ru} распознает речь...")
@@ -87,9 +112,10 @@ def online_recognition():
         query = offline_recognition()
     return query
 
-# Offline-распознавание речи
-def offline_recognition():
-    vosk_model = "vosk-model-ru-0.42"   # Используемая модель Vosk
+
+def offline_recognition() -> str:
+    """Offline-распознавание речи."""
+    vosk_model = "vosk-model-ru-0.42"  # Используемая модель Vosk
     query = ""
     try:
         if not os.path.exists(f"models/{vosk_model}"):  # Проверка наличия модели на нужном языке в каталоге приложения
@@ -108,19 +134,26 @@ def offline_recognition():
         speak(trex, "Извините, я не смог распознать речь. Пожалуйста, повторите запрос")
     return query
 
-# Поиск по Википедии
-def search_wiki(query):
+
+def search_wiki(query: str) -> None:
+    """
+    Поиск по Википедии.
+
+    - поиск страницы по запросу
+    - открытие найденной страницы в браузере
+    - чтение первых двух предложений
+    """
     speak(trex, "Произвожу поиск по Википедии")
     wiki = wikipediaapi.Wikipedia(f"{trex.bot_name_en} ({trex.bot_name_en}@selectel.ru)", "ru")
-    query = query.replace("википедия ", "")     # Удаляем ненужные слова запроса
+    query = query.replace("википедия ", "")  # Удаляем ненужные слова запроса
     query = query.replace("википедии ", "")
     query = query.replace("wikipedia ", "")
     wiki_page = wiki.page(query)
     try:
         if wiki_page.exists():
             speak(trex, f"Вот что мне удалось найти в Википедии по запросу \"{query}\"")
-            webbrowser.open(wiki_page.fullURI)  # Открытие ссылки в браузере
-            result = wiki_page.summary.split(".")[:2]   # Выборка двух первых предложений
+            webbrowser.open(wiki_page.fullurl)  # Открытие ссылки в браузере
+            result = wiki_page.summary.split(".")[:2]  # Выборка двух первых предложений
             speak(trex, result)
         else:
             speak(trex, f"К сожалению, я не смог ничего найти на Википедии по запросу \"{query}\"")
@@ -129,8 +162,15 @@ def search_wiki(query):
         traceback.print_exc()
         return
 
-# Поиск в Google
-def search_google(query):
+
+def search_google(query: str) -> None:
+    """
+    Поиск в Google.
+
+    - запоминаем фразу
+    - удаляем лишнее из запроса
+    - открываем браузер и вставляем подготовленную ссылку
+    """
     speak(trex, "Произвожу поиск в Google")
     query = query.replace("гугл ", "")  # Удаление ненужных слов в запросе
     query = query.replace("гугле ", "")
@@ -144,8 +184,15 @@ def search_google(query):
         traceback.print_exc()
         return
 
-# Поиск в Яндексе
-def search_yandex(query):
+
+def search_yandex(query: str) -> None:
+    """
+    Поиск в Яндексе.
+
+    - запоминаем фразу
+    - удаляем лишнее из запроса
+    - открываем браузер и вставляем подготовленную ссылку
+    """
     speak(trex, "Произвожу поиск в Яндексе")
     query = query.replace("яндекс ", "")    # Удаление ненужных слов в запросе
     query = query.replace("yandex ", "")
@@ -158,8 +205,9 @@ def search_yandex(query):
         traceback.print_exc()
         return
 
-# Поиск по YouTube
-def search_youtube(query):
+
+def search_youtube(query: str) -> None:
+    """Поиск по YouTube."""
     speak(trex, "Произвожу поиск на YouTube")
     query = query.replace("ютуб ", "")  # Удаление ненужных слов в запросе
     query = query.replace("youtube ", "")
@@ -172,10 +220,11 @@ def search_youtube(query):
         traceback.print_exc()
         return
 
-# Поиск по RuTube
-def search_rutube(query):
+
+def search_rutube(query: str) -> None:
+    """Поиск по RuTube."""
     speak(trex, "Произвожу поиск на RuTube")
-    query = query.replace("рутуб ", "") # Удаление ненужных слов в запросе
+    query = query.replace("рутуб ", "")  # Удаление ненужных слов в запросе
     query = query.replace("rutube ", "")
     try:
         URI = "https://rutube.ru/search/?query=" + query
@@ -186,9 +235,10 @@ def search_rutube(query):
         traceback.print_exc()
         return
 
-# Открытие веб-сайта
-def search_website(query):
-    query = query.replace("открой ", "")    # Удаление ненужных слов
+
+def search_website(query: str) -> None:
+    """Открытие веб-сайта."""
+    query = query.replace("открой ", "")  # Удаление ненужных слов
     query = query.replace("open ", "")
     speak(trex, f"Произвожу поиск сайта \"{query}\"")
     try:
@@ -200,41 +250,43 @@ def search_website(query):
         traceback.print_exc()
         return
 
-# Переводчик
-def translate(query):
+
+def translate(query: str) -> None:
+    """Переводчик."""
     gt = Translator()
     if ("с английского" in query):  # Инициализация переменных для перевода С АНГЛИЙСКОГО
         lang_src = "en"
         lang_dest = "ru"
-    elif ("на английский" in query):    # Инициализация переменных для перевода НА АНГЛИЙСКИЙ
+    elif ("на английский" in query):  # Инициализация переменных для перевода НА АНГЛИЙСКИЙ
         lang_src = "ru"
         lang_dest = "en"
     else:
         speak(trex, "Извините, поддерживается только перевод с английского на русский и наоборот")
         return
-    query = query.replace("переведи с английского ", "")    # Удаление ненужных слов в запросе
+    query = query.replace("переведи с английского ", "")  # Удаление ненужных слов в запросе
     query = query.replace("переведи на английский ", "")
     try:
-        translate_query = gt.translate(query, src=lang_src, dest=lang_dest)     # Перевод
+        translate_query = gt.translate(query, src=lang_src, dest=lang_dest)  # Перевод
         speak(trex, translate_query.text)
     except:
         speak(trex, "Произошла ошибка работы модуля \"Переводчик\". Подробности ошибки выведены в терминал")
         traceback.print_exc()
         return
 
-# Погода
-def get_weather(query):
-    weather_api_key = "your_api_key"    # API-ключ
+
+def get_weather(query: str) -> None:
+    """Погода."""
+    weather_api_key = [line.strip() for line in open("OpenWeather_key.txt")][0]  # API-ключ
     config_dict = get_default_config()  # Сброс настроек
     config_dict['language'] = 'ru'  # Установка языка
     try:
         open_weather_map = OWM(weather_api_key, config_dict)
         weather_manager = open_weather_map.weather_manager()
-        if ("в городе" in query):   # Установка города из запроса
+        if ("в городе" in query):  # Установка города из запроса
             city = query.split(" ")[-1:]
             city = str(city).strip("[]'")
         else:
-            city = trex.city    # Установка города по умолчанию
+            city = trex.city  # Установка города по умолчанию
         observation = weather_manager.weather_at_place(city)
         weather = observation.weather
     except:
@@ -250,13 +302,15 @@ def get_weather(query):
     speak(trex, f"Скорость ветра составляет {str(wind_speed)} метров в секунду")
     speak(trex, f"Давление составляет {str(pressure)} миллиметров ртутного столба")
 
-# Время
-def time():
+
+def time() -> None:
+    """Время."""
     time_time = datetime.datetime.now().strftime("%H:%M:%S")
     speak(trex, f"Текущее время: {time_time}")
 
-# Запуск приложения
-def start_app(query):
+
+def start_app(query: str) -> None:
+    """Запуск приложения."""
     query = query.replace("запусти ", "")
     print(query)
     if ("edge" in query):
@@ -266,8 +320,9 @@ def start_app(query):
     elif ("браузер" in query):
         subprocess.run(["start chrome"])
 
-# Запуск музыки
-def play_music():
+
+def play_music() -> None:
+    """Запуск музыки."""
     music_dir_name = "C:\\MyMusic"
     music_dir = Path(music_dir_name)
     music = os.listdir(music_dir)
@@ -276,8 +331,18 @@ def play_music():
     print(f"В папке {music_dir} есть {music_count} объектов")
     os.startfile(os.path.join(music_dir, music[random.randint(0, music_count-1)]))
 
-# Отправка почты
-def send_email():
+
+def send_email() -> None:
+    """
+    Отправка почты.
+
+    - подключение к SMTP-серверу
+    - аутентификация с паролем внешних приложений
+    - выбор получателя письма (В нашей реализации выбор получателя происходит только из заранее определённого списка.)
+    - указание заголовка письма
+    - указание текста письма
+    - отправка
+    """
     try:
         server = smtplib.SMTP_SSL('smtp.mail.ru', 465)
         server.ehlo()
@@ -306,8 +371,9 @@ def send_email():
         traceback.print_exc()
         return
 
-# Просмотр баланса Selectel
+
 def billing_selectel():
+    """Просмотр баланса Selectel."""
     apikey_selectel = "your_api_key"
     headers = {'X-Token': apikey_selectel}
     response = requests.get('https://api.selectel.ru/v3/balances', headers=headers)
@@ -325,6 +391,7 @@ def billing_selectel():
     else:
         speak(trex, "Не удалось получить информацию о балансе.")
 
+
 if __name__ == "__main__":
     trex = bot()
     trex.bot_name_ru = "Тирекс"
@@ -334,15 +401,7 @@ if __name__ == "__main__":
 
     engine = pyttsx3.init()
     voices = engine.getProperty('voices')
-    # Прослушивание голосов, доступных в ОС
-    # i = 0
-    # for voice in voices:
-    #     engine.setProperty('voice', voices[i].id)
-    #     print('Имя: %s' % voice.name)
-    #     print('ID: ', i)
-    #     speak(trex, "1")
-    #     print("--------------------")
-    #     i = i + 1
+    # voice_listening(engine, voices)
     if trex.language == "ru":
         engine.setProperty('voice', voices[0].id)
     elif trex.language == "en":
@@ -360,6 +419,15 @@ if __name__ == "__main__":
 
     while True:
         query = record()
+        # query = "Википедия кошка"
+        # query = "Google ЦОД Selectel"
+        # query = "Яндекс ЦОД Selectel"
+        # query = "YouTube ЦОД Selectel"
+        # query = "RuTube ЦОД Selectel"
+        # query = "Открой selectel.ru"
+        # query = "Переведи с английского i love you"
+        # query = "Погода в городе Санкт-Петербурге"
+        # query = "Время"
         os.remove("recorded_speech.wav")
         if (query == ""):
             print(f"{trex.bot_name_ru} не распознал речь. Возможно, вы ничего не сказали.")
